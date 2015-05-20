@@ -10,16 +10,16 @@ function [x, y, flags, stats] = craig_spot(A, b, opts)
 % Preconditioners M and N may be provided via `opts.M` and `opts.N` and are assumed
 % to be symmetric and positive definite. If `opts.sqd` is set to `true`, we solve
 % the symmetric and quasi-definite system
-% [ E   A' ] [ r ]   [ b ]
-% [ A  -F  ] [ x ] = [ 0 ],
+% [ E   A' ] [ x ]   [ 0 ]
+% [ A  -F  ] [ y ] = [ b ],
 % where E = inv(M) and F = inv(N).
 %
 % If `opts.sqd` is set to `false` (the default), we solve the symmetric and
 % indefinite system
-% [ E   A' ] [ r ]   [ b ]
-% [ A   0  ] [ x ] = [ 0 ].
+% [ E   A' ] [ x ]   [ 0 ]
+% [ A   0  ] [ y ] = [ b ].
 % In this case, `opts.N` can still be specified and inv(N) indicates the norm
-% in which `x` should be measured.
+% in which `y` should be measured.
 %
 % A is a linear operator.
 %
@@ -85,7 +85,6 @@ M_given = false;
 N = opEye(n);
 N_given = false;
 window = 5;
-x_energy_norm2 = 0;              % Squared energy norm of x.
 err_vector = zeros(window,1);    % Lower bounds on direct error in energy norm.
 err_lbnds = [];                  % History of values of err_lbnds.
 err_lbnd_small = false;
@@ -138,7 +137,8 @@ msg=['The exact solution is  x = 0                              '
      'The estimate of cond(A) has exceeded conlim               '
      'Ax - b is small enough for this machine                   '
      'Cond(A) seems to be too large for this machine            '
-     'The iteration limit has been reached                      '];
+     'The iteration limit has been reached                      '
+     'The truncated direct error is small enough, given etol    '];
 
 if show
    disp(' ')
@@ -146,7 +146,8 @@ if show
    str1 = sprintf('The matrix A has %8g rows  and %8g cols', m, n);
    str3 = sprintf('atol = %8.2e                 conlim = %8.2e', atol, conlim);
    str4 = sprintf('btol = %8.2e                 itnlim = %8g'  , btol, itnlim);
-   disp(str1);   disp(str3);   disp(str4);
+   str5 = sprintf('etol = %8.2e                 window = %8d'  , etol, window);
+   disp(str1);   disp(str3);   disp(str4);   disp(str5);
 end
 
 itn    = 0;
@@ -162,16 +163,26 @@ xnorm  = 0;
 %         beta*u = b.
 
 v      = zeros(n,1);
+Nv     = zeros(n,1);
 x      = zeros(n,1);
 w1     = zeros(m,1);
-if damp > 0, w2 = zeros(n,1); end;
-y      = zeros(m,1);
+if damp > 0
+  w2 = zeros(n,1);
+else
+  % When damp > 0, it is cheaper to compute
+  % y at the end of the main loop. We only
+  % recur it when damp == 0.
+  y = zeros(m,1);
+end;
 
-beta   = norm(b);
+Mu     = b;
+u      = M * Mu;
+beta   = sqrt(dot(u, Mu));
 bnorm  = beta;
 rnorm  = beta;
 if beta==0, disp(msg(1,:)); return, end
-u      = (1/beta)*b;
+u      = (1/beta)*u;
+Mu     = (1/beta)*Mu;
 
 % More initialization.
 % aanorm  is norm(L_k)**2, an estimate of norm(A)**2.  It is
@@ -180,7 +191,6 @@ u      = (1/beta)*b;
 % xxnorm  is norm(x_k)**2  =  norm(z_k)**2.
 
 delta  =  damp;
-oldrho =  1;
 theta  =  beta;
 
 aanorm =  0;
@@ -210,10 +220,12 @@ while itn < itnlim
   %      alpha*v  =  A'*u  -  beta*v.
   %       beta*u  =  A*v   -  alpha*u,
 
-  v = A'*u   - beta*v;
-  alpha  = norm(v);
+  Nv = A'*u   - beta*Nv;
+  v  = N * Nv;
+  alpha  = sqrt(dot(v, Nv));
   if alpha==0, istop = 2; disp(msg(istop+1,:)); break, end
   v      = (1/alpha)*v;
+  Nv     = (1/alpha)*Nv;
 
 % Form a rotation  Q(i,k+i)  such that
 %               (alpha  delta) ( cs1  -sn1 )  =  (rho   0  )
@@ -227,8 +239,7 @@ while itn < itnlim
     rho = alpha;
   end
 
-  temp2  =   alpha^2 + damp^2;
-  aanorm =   aanorm  +  temp2;
+  aanorm =   aanorm + alpha^2 + damp^2;
   z      = - (theta/rho)*z;
 
   if damp > 0
@@ -244,14 +255,19 @@ while itn < itnlim
   t2     =   z   /rho;
   t3     =   1   /rho;
 
-  w1     =   u + t1*w1;
-  y      =   y + t2*w1;
+  %w1     =   u + t1*w1;
+  w1     = u - theta * w1;
+  if damp == 0
+    y = y + t2*w1;
+  end;
   ddnorm =   ddnorm  + norm(t3*w1)^2;
 
-  u = A*v    - alpha*u;
-  beta = norm(u);
+  Mu = A*v    - alpha*Mu;
+  u  = M * Mu;
+  beta = sqrt(dot(u, Mu));
   if beta > 0
-      u = (1/beta)*u;
+      u  = (1/beta)*u;
+      Mu = (1/beta)*Mu;
   end
 
   if damp > 0
@@ -280,17 +296,27 @@ while itn < itnlim
   Anorm  =   sqrt( aanorm );
   Acond  =   sqrt( ddnorm )*Anorm;
   xxnorm =   xxnorm + z^2;
+  xnorm  =   sqrt( xxnorm );
   if damp > 0
     rnorm =  abs( cs1 * beta * z );
   else
     rnorm =  abs( beta*z );
   end
-  xnorm  =   sqrt( xxnorm );
 
   test1  =   rnorm/bnorm;
   test3  =   1    /Acond;
   t1     =   test1/(1 + Anorm*xnorm/bnorm);
   rtol   =   btol + atol*Anorm*xnorm/bnorm;
+
+  % ∑ ζ² is:
+  % - the square M-norm of x, and also
+  % - the square (N + A inv(M) A')-norm of y.
+  err_vector(mod(itn,window)+1) = z;
+  if itn >= window
+    err_lbnd = norm(err_vector);
+    err_lbnds = [err_lbnds ; err_lbnd];
+    err_lbnd_small = (err_lbnd <= etol * sqrt(xnorm));
+  end
 
   % The following tests guard against extremely small values of
   % atol, btol  or  ctol.  (The user may have set any or all of
@@ -298,12 +324,13 @@ while itn < itnlim
   % The effect is equivalent to the normal tests using
   % atol = eps,  btol = eps,  conlim = 1/eps.
 
-  if itn >= itnlim, istop = 6; end
-  if test3 <= eps , istop = 5; end
-  if t1    <= eps , istop = 4; end
+  if itn >= itnlim,  istop = 6; end
+  if err_lbnd_small, istop = 7; end
+  if test3 <= eps ,  istop = 5; end
+  if t1    <= eps ,  istop = 4; end
   % Allow for tolerances set by the user.
-  if test3 <= ctol, istop = 3; end
-  if test1 <= rtol, istop = 1; end
+  if test3 <= ctol,  istop = 3; end
+  if test1 <= rtol,  istop = 1; end
 
   % See if it is time to print something.
 
@@ -330,6 +357,13 @@ while itn < itnlim
   aanorm = aanorm + beta^2;
 end
 
+% Transfer to the LSQR point and recover y.
+if damp > 0
+  z = -(theta / delta) * z;
+  x = x + z * w2;
+  y = opts.N * (b - A * x);
+end
+
 if show
    disp(' ')
    disp('CRAIG finished')
@@ -350,6 +384,7 @@ stats.rnorm = rnorm;
 stats.Anorm = Anorm;
 stats.Acond = Acond;
 stats.xnorm = xnorm;
+stats.err_lbnds = err_lbnds;
 
 flags.solved = (istop >= 0 & istop <= 1) | istop == 4;
 flags.niters = itn;
