@@ -199,7 +199,7 @@ if beta1> 0
 
   % See if M is symmetric.
 
-  if check & precon
+  if check
     r2     = M * y;
     s      = y' *y;
     t      = r1'*r2;
