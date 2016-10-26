@@ -144,69 +144,69 @@ err_lbnds = [];                  % History of values of err_lbnds.
 err_lbnd_small = false;
 
 if nargin > 2
-  if isfield(opts, 'damp')
-    damp = opts.damp;
-  end
-  if isfield(opts, 'atol')
-    atol = opts.atol;
-  end
-  if isfield(opts, 'btol')
-    btol = opts.btol;
-  end
-  if isfield(opts, 'etol')
-    etol = opts.etol;
-  end
-  if isfield(opts, 'conlim')
-    conlim = opts.conlim;
-  end
-  if isfield(opts, 'itnlim')
-    itnlim = opts.itnlim;
-  end
-  if isfield(opts, 'show')
-    show = opts.show;
-  end
-  if isfield(opts, 'wantvar')
-    wantvar = opts.wantvar;
-  end
-  if isfield(opts, 'M')
-    M = opts.M;
-    M_given = true;
-  end
-  if isfield(opts, 'N')
-    N = opts.N;
-    N_given = true;
-  end
-  if isfield(opts, 'window')
-    window = opts.window;
-  end
-  if isfield(opts, 'sqd')
-    if opts.sqd & M_given & N_given
-      damp = 1.0;
+    if isfield(opts, 'damp')
+        damp = opts.damp;
     end
-  end
+    if isfield(opts, 'atol')
+        atol = opts.atol;
+    end
+    if isfield(opts, 'btol')
+        btol = opts.btol;
+    end
+    if isfield(opts, 'etol')
+        etol = opts.etol;
+    end
+    if isfield(opts, 'conlim')
+        conlim = opts.conlim;
+    end
+    if isfield(opts, 'itnlim')
+        itnlim = opts.itnlim;
+    end
+    if isfield(opts, 'show')
+        show = opts.show;
+    end
+    if isfield(opts, 'wantvar')
+        wantvar = opts.wantvar;
+    end
+    if isfield(opts, 'M')
+        M = opts.M;
+        M_given = true;
+    end
+    if isfield(opts, 'N')
+        N = opts.N;
+        N_given = true;
+    end
+    if isfield(opts, 'window')
+        window = opts.window;
+    end
+    if isfield(opts, 'sqd')
+        if opts.sqd & M_given & N_given
+            damp = 1.0;
+        end
+    end
 end
 
 if wantvar, var = zeros(n,1); end
 
 msg=['The exact solution is  x = 0                              '
-     'Ax - b is small enough, given atol, btol                  '
-     'The least-squares solution is good enough, given atol     '
-     'The estimate of cond(Abar) has exceeded conlim            '
-     'Ax - b is small enough for this machine                   '
-     'The least-squares solution is good enough for this machine'
-     'Cond(Abar) seems to be too large for this machine         '
-     'The iteration limit has been reached                      '
-     'The truncated direct error is small enough, given etol    '];
+    'Ax - b is small enough, given atol, btol                  '
+    'The least-squares solution is good enough, given atol     '
+    'The estimate of cond(Abar) has exceeded conlim            '
+    'Ax - b is small enough for this machine                   '
+    'The least-squares solution is good enough for this machine'
+    'Cond(Abar) seems to be too large for this machine         '
+    'The iteration limit has been reached                      '
+    'The truncated direct error is small enough, given etol    '];
 
 if show
-   disp(' ')
-   disp('LSQR            Least-squares solution of  Ax = b')
-   str1 = sprintf('The matrix A has %8d rows  and %8d cols', m,n);
-   str2 = sprintf('damp = %20.14e    wantvar = %8g', damp,wantvar);
-   str3 = sprintf('atol = %8.2e                 conlim = %8.2e', atol,conlim);
-   str4 = sprintf('btol = %8.2e                 itnlim = %8g'  , btol,itnlim);
-   str5 = sprintf('etol = %8.2e                 window = %8d'  , etol,window);
-   disp(str1);   disp(str2);   disp(str3);   disp(str4);   disp(str5);
+    disp(' ')
+    disp('LSQR            Least-squares solution of  Ax = b')
+    str1 = sprintf('The matrix A has %8d rows  and %8d cols', m,n);
+    str2 = sprintf('damp = %20.14e    wantvar = %8g', damp,wantvar);
+    str3 = sprintf('atol = %8.2e                 conlim = %8.2e', atol,conlim);
+    str4 = sprintf('btol = %8.2e                 itnlim = %8g'  , btol,itnlim);
+    str5 = sprintf('etol = %8.2e                 window = %8d'  , etol,window);
+    disp(str1);   disp(str2);   disp(str3);   disp(str4);   disp(str5);
 end
 
 itn    = 0;             istop  = 0;
@@ -223,23 +223,21 @@ Mu     = b(1:m);        x    = zeros(n,1);
 u      = M * Mu;
 alfa   = 0;             beta = sqrt(dot(u,Mu));
 if beta > 0
-   u   = (1/beta)*u;
-   Mu  = (1/beta)*Mu;
-   Nv  = A' * u;
-   v   = N * Nv;
-   alfa = sqrt(dot(v, Nv));
+    u   = (1/beta)*u;
+    Mu  = (1/beta)*Mu;
+    Nv  = A' * u;
+    v   = N * Nv;
+    alfa = sqrt(dot(v, Nv));
 end
 if alfa > 0
-   v  = (1/alfa)*v;      w = v;  % w = Nv ?
-   Nv = (1/alfa)*Nv;
+    v  = (1/alfa)*v;      w = v;  % w = Nv ?
+    Nv = (1/alfa)*Nv;
 end
 
-Arnorm = alfa*beta;     
+Arnorm = alfa*beta;
 
-if Arnorm == 0
-    % Bypass main loop
-    itn = itnlim;
-end
+% Boolean that checks if the loop will be bypassed
+done = Arnorm == 0;
 
 rhobar = alfa;          phibar = beta;          bnorm  = beta;
 rnorm  = beta;
@@ -251,193 +249,193 @@ resvec = [resvec ; r2norm];
 Aresvec = [Aresvec ; Arnorm];
 
 if show
-   disp(' ')
-   disp([head1 head2])
-   test1  = 1;          test2  = alfa / beta;
-   str1   = sprintf( '%6g %12.5e',        itn,   x(1) );
-   str2   = sprintf( ' %10.3e %10.3e', r1norm, r2norm );
-   str3   = sprintf( '  %8.1e %8.1e',   test1,  test2 );
-   disp([str1 str2 str3])
+    disp(' ')
+    disp([head1 head2])
+    test1  = 1;          test2  = alfa / beta;
+    str1   = sprintf( '%6g %12.5e',        itn,   x(1) );
+    str2   = sprintf( ' %10.3e %10.3e', r1norm, r2norm );
+    str3   = sprintf( '  %8.1e %8.1e',   test1,  test2 );
+    disp([str1 str2 str3])
 end
 
 %------------------------------------------------------------------
 %     Main iteration loop.
 %------------------------------------------------------------------
-while itn < itnlim
-  itn = itn + 1;
-
-% Perform the next step of the bidiagonalization to obtain the
-% next beta, u, alfa, v.  These satisfy the relations
-%      beta*M*u  =  A*v  - alfa*M*u,
-%      alfa*N*v  =  A'*u - beta*N*v.
-
-  Mu = A * v - alfa * Mu;
-  u = M * Mu;
-  beta = sqrt(dot(u, Mu));
-
-  if beta > 0
-    u     = (1/beta)*u;
-    Mu    = (1/beta)*Mu;
-    Anorm = norm([Anorm alfa beta damp]);
-
-    Nv    = A' * u - beta * Nv;
-    v     = N * Nv;
-    alfa  = sqrt(dot(v, Nv));
-    if alfa > 0
-      v  = (1/alfa)*v;
-      Nv = (1/alfa)*Nv;
+while (itn < itnlim) && ~done
+    itn = itn + 1;
+    
+    % Perform the next step of the bidiagonalization to obtain the
+    % next beta, u, alfa, v.  These satisfy the relations
+    %      beta*M*u  =  A*v  - alfa*M*u,
+    %      alfa*N*v  =  A'*u - beta*N*v.
+    
+    Mu = A * v - alfa * Mu;
+    u = M * Mu;
+    beta = sqrt(dot(u, Mu));
+    
+    if beta > 0
+        u     = (1/beta)*u;
+        Mu    = (1/beta)*Mu;
+        Anorm = norm([Anorm alfa beta damp]);
+        
+        Nv    = A' * u - beta * Nv;
+        v     = N * Nv;
+        alfa  = sqrt(dot(v, Nv));
+        if alfa > 0
+            v  = (1/alfa)*v;
+            Nv = (1/alfa)*Nv;
+        end
     end
-  end
-
-% Use a plane rotation to eliminate the damping parameter.
-% This alters the diagonal (rhobar) of the lower-bidiagonal matrix.
-
-  rhobar1 = norm([rhobar damp]);
-  cs1     = rhobar/rhobar1;
-  sn1     = damp  /rhobar1;
-  psi     = sn1*phibar;
-  phibar  = cs1*phibar;
-
-% Use a plane rotation to eliminate the subdiagonal element (beta)
-% of the lower-bidiagonal matrix, giving an upper-bidiagonal matrix.
-
-  rho     =   norm([rhobar1 beta]);
-  cs      =   rhobar1/rho;
-  sn      =   beta   /rho;
-  theta   =   sn*alfa;
-  rhobar  = - cs*alfa;
-  phi     =   cs*phibar;
-  phibar  =   sn*phibar;
-  tau     =   sn*phi;
-
-  x_energy_norm2 = x_energy_norm2 + phi*phi;
-
-% Update x and w.
-
-  t1      =   phi  /rho;
-  t2      = - theta/rho;
-  dk      =   (1/rho)*w;
-
-  x       = x      + t1*w;
-  w       = v      + t2*w;
-  ddnorm  = ddnorm + norm(dk)^2;
-  if wantvar, var = var + dk.*dk; end
-
-% Use a plane rotation on the right to eliminate the
-% super-diagonal element (theta) of the upper-bidiagonal matrix.
-% Then use the result to estimate  norm(x).
-
-  delta   =   sn2*rho;
-  gambar  = - cs2*rho;
-  rhs     =   phi - delta*z;
-  zbar    =   rhs/gambar;
-  xnorm   =   sqrt(xxnorm + zbar^2);
-  gamma   =   norm([gambar theta]);
-  cs2     =   gambar/gamma;
-  sn2     =   theta /gamma;
-  z       =   rhs   /gamma;
-  xxnorm  =   xxnorm + z^2;
-
-% Test for convergence.
-
-% See if lower bound on direct error has converged.
-
-  err_vector(mod(itn,window)+1) = phi;
-  if itn >= window
-    err_lbnd = norm(err_vector);
-    err_lbnds = [err_lbnds ; err_lbnd];
-    err_lbnd_small = (err_lbnd <= etol * sqrt(x_energy_norm2));
-  end
-
-% First, estimate the condition of the matrix  Abar,
-% and the norms of  rbar  and  Abar'rbar.
-
-  Acond   =   Anorm*sqrt(ddnorm);
-  res1    =   phibar^2;
-  res2    =   res2 + psi^2;
-  rnorm   =   sqrt(res1 + res2);
-  Arnorm  =   alfa*abs(tau);
-
-% 07 Aug 2002:
-% Distinguish between
-%    r1norm = ||b - Ax|| and
-%    r2norm = rnorm in current code
-%           = sqrt(r1norm^2 + damp^2*||x||^2).
-%    Estimate r1norm from
-%    r1norm = sqrt(r2norm^2 - damp^2*||x||^2).
-% Although there is cancellation, it might be accurate enough.
-
-  r1sq    =   rnorm^2 - dampsq*xxnorm;
-  r1norm  =   sqrt(abs(r1sq));   if r1sq < 0, r1norm = - r1norm; end
-  r2norm  =   rnorm;
-  resvec = [resvec ; r2norm];
-  Aresvec = [Aresvec ; Arnorm];
-
-% Now use these norms to estimate certain other quantities,
-% some of which will be small near a solution.
-
-  test1   =   rnorm /bnorm;
-  test2   =   Arnorm/(Anorm*rnorm);
-  test3   =        1/Acond;
-  t1      =   test1/(1 + Anorm*xnorm/bnorm);
-  rtol    =   btol + atol*Anorm*xnorm/bnorm;
-
-% The following tests guard against extremely small values of
-% atol, btol  or  ctol.  (The user may have set any or all of
-% the parameters  atol, btol, conlim  to 0.)
-% The effect is equivalent to the normal tests using
-% atol = eps,  btol = eps,  conlim = 1/eps.
-
-  if itn >= itnlim,   istop = 7; end
-  if err_lbnd_small,  istop = 8; end
-  if 1 + test3  <= 1, istop = 6; end
-  if 1 + test2  <= 1, istop = 5; end
-  if 1 + t1     <= 1, istop = 4; end
-
-% Allow for tolerances set by the user.
-
-  if  test3 <= ctol,  istop = 3; end
-  if  test2 <= atol,  istop = 2; end
-  if  test1 <= rtol,  istop = 1; end
-
-% See if it is time to print something.
-
-  prnt = 0;
-  if n     <= 40       , prnt = 1; end
-  if itn   <= 10       , prnt = 1; end
-  if itn   >= itnlim-10, prnt = 1; end
-  if rem(itn,10) == 0  , prnt = 1; end
-  if test3 <=  2*ctol  , prnt = 1; end
-  if test2 <= 10*atol  , prnt = 1; end
-  if test1 <= 10*rtol  , prnt = 1; end
-  if istop ~=  0       , prnt = 1; end
-
-  if prnt
-    if show
-      str1 = sprintf( '%6g %12.5e',        itn,   x(1) );
-      str2 = sprintf( ' %10.3e %10.3e', r1norm, r2norm );
-      str3 = sprintf( '  %8.1e %8.1e',   test1,  test2 );
-      str4 = sprintf( ' %8.1e %8.1e',    Anorm,  Acond );
-      disp([str1 str2 str3 str4])
+    
+    % Use a plane rotation to eliminate the damping parameter.
+    % This alters the diagonal (rhobar) of the lower-bidiagonal matrix.
+    
+    rhobar1 = norm([rhobar damp]);
+    cs1     = rhobar/rhobar1;
+    sn1     = damp  /rhobar1;
+    psi     = sn1*phibar;
+    phibar  = cs1*phibar;
+    
+    % Use a plane rotation to eliminate the subdiagonal element (beta)
+    % of the lower-bidiagonal matrix, giving an upper-bidiagonal matrix.
+    
+    rho     =   norm([rhobar1 beta]);
+    cs      =   rhobar1/rho;
+    sn      =   beta   /rho;
+    theta   =   sn*alfa;
+    rhobar  = - cs*alfa;
+    phi     =   cs*phibar;
+    phibar  =   sn*phibar;
+    tau     =   sn*phi;
+    
+    x_energy_norm2 = x_energy_norm2 + phi*phi;
+    
+    % Update x and w.
+    
+    t1      =   phi  /rho;
+    t2      = - theta/rho;
+    dk      =   (1/rho)*w;
+    
+    x       = x      + t1*w;
+    w       = v      + t2*w;
+    ddnorm  = ddnorm + norm(dk)^2;
+    if wantvar, var = var + dk.*dk; end
+    
+    % Use a plane rotation on the right to eliminate the
+    % super-diagonal element (theta) of the upper-bidiagonal matrix.
+    % Then use the result to estimate  norm(x).
+    
+    delta   =   sn2*rho;
+    gambar  = - cs2*rho;
+    rhs     =   phi - delta*z;
+    zbar    =   rhs/gambar;
+    xnorm   =   sqrt(xxnorm + zbar^2);
+    gamma   =   norm([gambar theta]);
+    cs2     =   gambar/gamma;
+    sn2     =   theta /gamma;
+    z       =   rhs   /gamma;
+    xxnorm  =   xxnorm + z^2;
+    
+    % Test for convergence.
+    
+    % See if lower bound on direct error has converged.
+    
+    err_vector(mod(itn,window)+1) = phi;
+    if itn >= window
+        err_lbnd = norm(err_vector);
+        err_lbnds = [err_lbnds ; err_lbnd];
+        err_lbnd_small = (err_lbnd <= etol * sqrt(x_energy_norm2));
     end
-  end
-  if istop > 0, break, end
+    
+    % First, estimate the condition of the matrix  Abar,
+    % and the norms of  rbar  and  Abar'rbar.
+    
+    Acond   =   Anorm*sqrt(ddnorm);
+    res1    =   phibar^2;
+    res2    =   res2 + psi^2;
+    rnorm   =   sqrt(res1 + res2);
+    Arnorm  =   alfa*abs(tau);
+    
+    % 07 Aug 2002:
+    % Distinguish between
+    %    r1norm = ||b - Ax|| and
+    %    r2norm = rnorm in current code
+    %           = sqrt(r1norm^2 + damp^2*||x||^2).
+    %    Estimate r1norm from
+    %    r1norm = sqrt(r2norm^2 - damp^2*||x||^2).
+    % Although there is cancellation, it might be accurate enough.
+    
+    r1sq    =   rnorm^2 - dampsq*xxnorm;
+    r1norm  =   sqrt(abs(r1sq));   if r1sq < 0, r1norm = - r1norm; end
+    r2norm  =   rnorm;
+    resvec = [resvec ; r2norm];
+    Aresvec = [Aresvec ; Arnorm];
+    
+    % Now use these norms to estimate certain other quantities,
+    % some of which will be small near a solution.
+    
+    test1   =   rnorm /bnorm;
+    test2   =   Arnorm/(Anorm*rnorm);
+    test3   =        1/Acond;
+    t1      =   test1/(1 + Anorm*xnorm/bnorm);
+    rtol    =   btol + atol*Anorm*xnorm/bnorm;
+    
+    % The following tests guard against extremely small values of
+    % atol, btol  or  ctol.  (The user may have set any or all of
+    % the parameters  atol, btol, conlim  to 0.)
+    % The effect is equivalent to the normal tests using
+    % atol = eps,  btol = eps,  conlim = 1/eps.
+    
+    if itn >= itnlim,   istop = 7; end
+    if err_lbnd_small,  istop = 8; end
+    if 1 + test3  <= 1, istop = 6; end
+    if 1 + test2  <= 1, istop = 5; end
+    if 1 + t1     <= 1, istop = 4; end
+    
+    % Allow for tolerances set by the user.
+    
+    if  test3 <= ctol,  istop = 3; end
+    if  test2 <= atol,  istop = 2; end
+    if  test1 <= rtol,  istop = 1; end
+    
+    % See if it is time to print something.
+    
+    prnt = 0;
+    if n     <= 40       , prnt = 1; end
+    if itn   <= 10       , prnt = 1; end
+    if itn   >= itnlim-10, prnt = 1; end
+    if rem(itn,10) == 0  , prnt = 1; end
+    if test3 <=  2*ctol  , prnt = 1; end
+    if test2 <= 10*atol  , prnt = 1; end
+    if test1 <= 10*rtol  , prnt = 1; end
+    if istop ~=  0       , prnt = 1; end
+    
+    if prnt
+        if show
+            str1 = sprintf( '%6g %12.5e',        itn,   x(1) );
+            str2 = sprintf( ' %10.3e %10.3e', r1norm, r2norm );
+            str3 = sprintf( '  %8.1e %8.1e',   test1,  test2 );
+            str4 = sprintf( ' %8.1e %8.1e',    Anorm,  Acond );
+            disp([str1 str2 str3 str4])
+        end
+    end
+    if istop > 0, break, end
 end
 
 % End of iteration loop.
 % Print the stopping condition.
 
 if show
-   fprintf('\nlsqr finished\n')
-   disp(msg(istop+1,:))
-   disp(' ')
-   str1 = sprintf( 'istop =%8g   r1norm =%8.1e',   istop, r1norm );
-   str2 = sprintf( 'Anorm =%8.1e   Arnorm =%8.1e', Anorm, Arnorm );
-   str3 = sprintf( 'itn   =%8g   r2norm =%8.1e',     itn, r2norm );
-   str4 = sprintf( 'Acond =%8.1e   xnorm  =%8.1e', Acond, xnorm  );
-   disp([str1 '   ' str2])
-   disp([str3 '   ' str4])
-   disp(' ')
+    fprintf('\nlsqr finished\n')
+    disp(msg(istop+1,:))
+    disp(' ')
+    str1 = sprintf( 'istop =%8g   r1norm =%8.1e',   istop, r1norm );
+    str2 = sprintf( 'Anorm =%8.1e   Arnorm =%8.1e', Anorm, Arnorm );
+    str3 = sprintf( 'itn   =%8g   r2norm =%8.1e',     itn, r2norm );
+    str4 = sprintf( 'Acond =%8.1e   xnorm  =%8.1e', Acond, xnorm  );
+    disp([str1 '   ' str2])
+    disp([str3 '   ' str4])
+    disp(' ')
 end
 
 % Collect statistics.
@@ -454,7 +452,7 @@ stats.Aresvec = Aresvec;
 stats.err_lbnds = err_lbnds;
 stats.x_energy_norm = sqrt(x_energy_norm2);
 if wantvar
-  stats.var = var;
+    stats.var = var;
 end
 
 flags.solved = istop == 0 | (istop >= 1 & istop <= 3) | ...
