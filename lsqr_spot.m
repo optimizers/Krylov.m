@@ -234,7 +234,12 @@ if alfa > 0
    Nv = (1/alfa)*Nv;
 end
 
-Arnorm = alfa*beta;     if Arnorm == 0, disp(msg(1,:)); return, end
+Arnorm = alfa*beta;     
+
+if Arnorm == 0
+    % Bypass main loop
+    itn = itnlim;
+end
 
 rhobar = alfa;          phibar = beta;          bnorm  = beta;
 rnorm  = beta;
@@ -452,7 +457,8 @@ if wantvar
   stats.var = var;
 end
 
-flags.solved = (istop >= 1 & istop <= 3) | (istop >= 5 & istop <= 6) | istop == 8;
+flags.solved = istop == 0 | (istop >= 1 & istop <= 3) | ...
+    (istop >= 5 & istop <= 6) | istop == 8;
 flags.niters = itn;
 
 %-----------------------------------------------------------------------
