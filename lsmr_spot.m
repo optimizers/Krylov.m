@@ -142,257 +142,258 @@ function [x, flags, stats] = lsmr_spot(A, b, opts)
 % Dept of MS&E, Stanford University.
 %-----------------------------------------------------------------------
 
-% Initialize.
+  % Initialize.
 
-[m, n] = size(A);
-minDim = min([m n]);
+  [m, n] = size(A);
+  minDim = min([m n]);
 
-% Retrieve input arguments.
-lambda = 0;
-atol = 1.0e-6;
-btol = 1.0e-6;
-etol = 1.0e-6;
-conlim = 1.0e+8;
-itnlim = minDim;
-localSize = 0;
-show = false;
-wantvar = false;
-resvec = [];
-Aresvec = [];
+  % Retrieve input arguments.
+  lambda = 0;
+  atol = 1.0e-6;
+  btol = 1.0e-6;
+  etol = 1.0e-6;
+  conlim = 1.0e+8;
+  itnlim = minDim;
+  localSize = 0;
+  show = false;
+  wantvar = false;
+  resvec = [];
+  Aresvec = [];
 
-M = opEye(m);
-M_given = false;
-N = opEye(n);
-N_given = false;
-window = 5;
-x_energy_norm2 = 0;              % Squared energy norm of x.
-x_energy_norm = 0;               % Energy norm of x.
-err_vector = zeros(window,1);   % Lower bound on direct error in energy norm.
-err_lbnds = [];                  % History of values of err_lbnd.
-err_lbnd_small = false;
+  M = opEye(m);
+  M_given = false;
+  N = opEye(n);
+  N_given = false;
+  window = 5;
+  x_energy_norm2 = 0;              % Squared energy norm of x.
+  x_energy_norm = 0;               % Energy norm of x.
+  err_vector = zeros(window,1);   % Lower bound on direct error in energy norm.
+  err_lbnds = [];                  % History of values of err_lbnd.
+  err_lbnd_small = false;
 
-if nargin > 2
+  if nargin > 2
     if isfield(opts, 'damp')
-        lambda = opts.damp;
+      lambda = opts.damp;
     end
     if isfield(opts, 'atol')
-        atol = opts.atol;
+      atol = opts.atol;
     end
     if isfield(opts, 'btol')
-        btol = opts.btol;
+      btol = opts.btol;
     end
     if isfield(opts, 'etol')
-        etol = opts.etol;
+      etol = opts.etol;
     end
     if isfield(opts, 'conlim')
-        conlim = opts.conlim;
+      conlim = opts.conlim;
     end
     if isfield(opts, 'itnlim')
-        itnlim = opts.itnlim;
+      itnlim = opts.itnlim;
     end
     if isfield(opts, 'localSize')
-        localSize = opts.localSize;
+      localSize = opts.localSize;
     end
     if isfield(opts, 'show')
-        show = opts.show;
+      show = opts.show;
     end
     if isfield(opts, 'wantvar')
-        wantvar = opts.wantvar;
+      wantvar = opts.wantvar;
     end
     if isfield(opts, 'M')
-        M = opts.M;
-        M_given = true;
+      M = opts.M;
+      M_given = true;
     end
     if isfield(opts, 'N')
-        N = opts.N;
-        N_given = true;
+      N = opts.N;
+      N_given = true;
     end
     if isfield(opts, 'window')
-        window = opts.window;
+      window = opts.window;
     end
     if isfield(opts, 'sqd')
-        if opts.sqd & M_given & N_given
-            lambda = 1.0;
-        end
+      if opts.sqd & M_given & N_given
+        lambda = 1.0;
+      end
     end
-end
+  end
 
-if wantvar, var = zeros(n,1); end
+  if wantvar, var = zeros(n,1); end
 
-msg = ['The exact solution is  x = 0                              '
-    'Ax - b is small enough, given atol, btol                  '
-    'The least-squares solution is good enough, given atol     '
-    'The estimate of cond(Abar) has exceeded conlim            '
-    'Ax - b is small enough for this machine                   '
-    'The least-squares solution is good enough for this machine'
-    'Cond(Abar) seems to be too large for this machine         '
-    'The iteration limit has been reached                      '
-    'The truncated direct error is small enough, given etol    '];
+  msg = ['The exact solution is  x = 0                              '
+         'Ax - b is small enough, given atol, btol                  '
+         'The least-squares solution is good enough, given atol     '
+         'The estimate of cond(Abar) has exceeded conlim            '
+         'Ax - b is small enough for this machine                   '
+         'The least-squares solution is good enough for this machine'
+         'Cond(Abar) seems to be too large for this machine         '
+         'The iteration limit has been reached                      '
+         'The truncated direct error is small enough, given etol    '];
 
-hdg1 = '   itn      x(1)       norm r    norm A''r';
-hdg2 = ' compatible   LS      norm A   cond A';
-pfreq  = 20;   % print frequency (for repeating the heading)
-pcount = 0;    % print counter
+  hdg1 = '   itn      x(1)       norm r    norm A''r';
+  hdg2 = ' compatible   LS      norm A   cond A';
+  pfreq  = 20;   % print frequency (for repeating the heading)
+  pcount = 0;    % print counter
 
-% Form the first vectors u and v.
-% These satisfy  beta*u = b,  alpha*v = A'u.
+  % Form the first vectors u and v.
+  % These satisfy  beta*u = b,  alpha*v = A'u.
 
-Mu   = b;
-u    = M * Mu;
-beta = realsqrt(dot(u, Mu));
-if beta > 0
+  Mu   = b;
+  u    = M * Mu;
+  beta = realsqrt(dot(u, Mu));
+  if beta > 0
     u  = u/beta;
     Mu = Mu/beta;
-end
+  end
 
-Nv = A' * u;
-v  = N * Nv;
+  Nv = A' * u;
+  v  = N * Nv;
 
-if show
+  if show
     fprintf('\n\nLSMR            Least-squares solution of  Ax = b')
     fprintf('\nVersion 1.11                          09 Jun 2010')
     fprintf('\nThe matrix A has %8g rows  and %8g cols', m,n)
     fprintf('\nlambda = %16.10e', lambda )
     fprintf('\natol   = %8.2e               conlim = %8.2e', atol,conlim)
     fprintf('\nbtol   = %8.2e               itnlim = %8g'  , btol,itnlim)
-end
+  end
 
-alpha = realsqrt(dot(v, Nv));
-if alpha > 0
+  alpha = realsqrt(dot(v, Nv));
+  if alpha > 0
     v  = (1/alpha)*v;
     Nv = (1/alpha)*Nv;
-end
+  end
 
-% Initialization for local reorthogonalization.
+  % Initialization for local reorthogonalization.
 
-localOrtho = false;
-if localSize > 0
+  localOrtho = false;
+  if localSize > 0
     localPointer    = 0;
     localOrtho      = true;
     localVQueueFull = false;
-    
+
     % Preallocate storage for the relevant number of latest v_k's.
-    
+
     localV = zeros(n, min([localSize minDim]));
-end
+  end
 
-% Initialize variables for 1st iteration.
+  % Initialize variables for 1st iteration.
 
-itn      = 0;
-zetabar  = alpha*beta;
-alphabar = alpha;
-rho      = 1;
-rhobar   = 1;
-cbar     = 1;
-sbar     = 0;
+  itn      = 0;
+  zetabar  = alpha*beta;
+  alphabar = alpha;
+  rho      = 1;
+  rhobar   = 1;
+  cbar     = 1;
+  sbar     = 0;
 
-h    = v;
-hbar = zeros(n,1);
-x    = zeros(n,1);
+  h    = v;
+  hbar = zeros(n,1);
+  x    = zeros(n,1);
 
-% Initialize variables for estimation of ||r||.
+  % Initialize variables for estimation of ||r||.
 
-betadd      = beta;
-betad       = 0;
-rhodold     = 1;
-tautildeold = 0;
-thetatilde  = 0;
-zeta        = 0;
-d           = 0;
+  betadd      = beta;
+  betad       = 0;
+  rhodold     = 1;
+  tautildeold = 0;
+  thetatilde  = 0;
+  zeta        = 0;
+  d           = 0;
 
-% Initialize variables for estimation of ||A|| and cond(A).
+  % Initialize variables for estimation of ||A|| and cond(A).
 
-normA2  = alpha^2;
-maxrbar = 0;
-minrbar = 1e+100;
+  normA2  = alpha^2;
+  maxrbar = 0;
+  minrbar = 1e+100;
 
-% Items for use in stopping rules.
-normb  = beta;
-istop  = 0;
-ctol   = 0;         if conlim > 0, ctol = 1/conlim; end;
-normr  = beta;
+  % Items for use in stopping rules.
+  normb  = beta;
+  istop  = 0;
+  ctol   = 0;         if conlim > 0, ctol = 1/conlim; end;
+  normr  = beta;
 
-resvec = [resvec ; normr];
+  resvec = [resvec ; normr];
 
-% Exit if b=0 or A'b = 0.
+  % Exit if b=0 or A'b = 0.
 
-normAr = alpha * beta;
-Aresvec = [Aresvec ; normAr];
+  normAr = alpha * beta;
+  Aresvec = [Aresvec ; normAr];
+  
+  % Missing variables are initialized to 0
+  normx = 0;
+  normA = 0;
+  condA = 0;
 
-% Heading for iteration log.
+  if normAr == 0
+      % Bypass main loop
+      itn = itnlim;
+  end
 
-if show
+  % Heading for iteration log.
+
+  if show
     test1 = 1;
     test2 = alpha/beta;
     fprintf('\n\n%s%s'      , hdg1 , hdg2   )
     fprintf('\n%6g %12.5e'  , itn  , x(1)   )
     fprintf(' %10.3e %10.3e', normr, normAr )
     fprintf('  %8.1e %8.1e' , test1, test2  )
-end
+  end
 
-% Missing variables are initialized to 0
-normx = 0;
-normA = 0;
-condA = 0;
 
-if normAr == 0
-    % Bypass main loop
-    itn = itnlim;
-end
-
-%------------------------------------------------------------------
-%     Main iteration loop.
-%------------------------------------------------------------------
-while itn < itnlim
+  %------------------------------------------------------------------
+  %     Main iteration loop.
+  %------------------------------------------------------------------
+  while itn < itnlim
     itn = itn + 1;
-    
+
     % Perform the next step of the bidiagonalization to obtain the
     % next beta, u, alpha, v.  These satisfy the relations
     %      beta*M*u  =  A*v  - alpha*M*u,
     %      alpha*N*v  =  A'*u - beta*N*v.
-    
+
     Mu = A*v    - alpha * Mu;
     u  = M * Mu;
     beta = realsqrt(dot(u, Mu));
-    
+
     if beta > 0
-        u = (1/beta)*u;
-        Mu = (1/beta)*Mu;
-        if localOrtho
-            localVEnqueue(v);    % Store old v for local reorthogonalization of new v.
-        end
-        Nv = A' * u - beta * Nv;
-        v  = N * Nv;
-        
-        if localOrtho
-            v = localVOrtho(v);  % Local-reorthogonalization of new v.
-        end
-        alpha  = realsqrt(dot(v, Nv));
-        if alpha > 0
-            v  = (1/alpha)*v;
-            Nv = (1/alpha)*Nv;
-        end
+      u = (1/beta)*u;
+      Mu = (1/beta)*Mu;
+      if localOrtho
+        localVEnqueue(v);    % Store old v for local reorthogonalization of new v.
+      end
+      Nv = A' * u - beta * Nv;
+      v  = N * Nv;
+
+      if localOrtho
+        v = localVOrtho(v);  % Local-reorthogonalization of new v.
+      end
+      alpha  = realsqrt(dot(v, Nv));
+      if alpha > 0
+        v  = (1/alpha)*v;
+        Nv = (1/alpha)*Nv;
+      end
     end
-    
+
     % At this point, beta = beta_{k+1}, alpha = alpha_{k+1}.
-    
+
     % Construct rotation Qhat_{k,2k+1}.
-    
+
     alphahat = norm([alphabar lambda]);
     chat     = alphabar/alphahat;
     shat     = lambda/alphahat;
-    
+
     % Use a plane rotation (Q_i) to turn B_i to R_i.
-    
+
     rhoold   = rho;
     rho      = norm([alphahat beta]);
     c        = alphahat/rho;
     s        = beta/rho;
     thetanew = s*alpha;
     alphabar = c*alpha;
-    
+
     % Use a plane rotation (Qbar_i) to turn R_i^T to R_i^bar.
-    
+
     rhobarold = rhobar;
     zetaold   = zeta;
     thetabar  = sbar*rho;
@@ -402,37 +403,37 @@ while itn < itnlim
     sbar      = thetanew/rhobar;
     zeta      =   cbar*zetabar;
     zetabar   = - sbar*zetabar;
-    
+
     x_energy_norm2 = x_energy_norm2 + zeta * zeta;
-    
+
     % Update h, h_hat, x.
-    
+
     hbar      = h - (thetabar*rho/(rhoold*rhobarold))*hbar;
     x         = x + (zeta/(rho*rhobar))*hbar;
     h         = v - (thetanew/rho)*h;
-    
+
     % See if lower bound on direct error has converged.
-    
+
     err_vector(mod(itn,window)+1) = zeta;
     if itn >= window
-        err_lbnd = norm(err_vector);
-        err_lbnds = [err_lbnds ; err_lbnd];
-        err_lbnd_small = (err_lbnd <= etol * sqrt(x_energy_norm2));
+      err_lbnd = norm(err_vector);
+      err_lbnds = [err_lbnds ; err_lbnd];
+      err_lbnd_small = (err_lbnd <= etol * sqrt(x_energy_norm2));
     end
-    
+
     % Estimate of ||r||.
-    
+
     % Apply rotation Qhat_{k,2k+1}.
     betaacute =   chat* betadd;
     betacheck = - shat* betadd;
-    
+
     % Apply rotation Q_{k,k+1}.
     betahat   =   c*betaacute;
     betadd    = - s*betaacute;
-    
+
     % Apply rotation Qtilde_{k-1}.
     % betad = betad_{k-1} here.
-    
+
     thetatildeold = thetatilde;
     rhotildeold   = norm([rhodold thetabar]);
     ctildeold     = rhodold/rhotildeold;
@@ -440,119 +441,119 @@ while itn < itnlim
     thetatilde    = stildeold* rhobar;
     rhodold       =   ctildeold* rhobar;
     betad         = - stildeold*betad + ctildeold*betahat;
-    
+
     % betad   = betad_k here.
     % rhodold = rhod_k  here.
-    
+
     tautildeold   = (zetaold - thetatildeold*tautildeold)/rhotildeold;
     taud          = (zeta - thetatilde*tautildeold)/rhodold;
     d             = d + betacheck^2;
     normr         = realsqrt(d + (betad - taud)^2 + betadd^2);
-    
+
     resvec = [resvec ; normr];
-    
+
     % Estimate ||A||.
     normA2        = normA2 + beta^2;
     normA         = realsqrt(normA2);
     normA2        = normA2 + alpha^2;
-    
+
     % Estimate cond(A).
     maxrbar       = max(maxrbar,rhobarold);
     if itn>1
-        minrbar     = min(minrbar,rhobarold);
+      minrbar     = min(minrbar,rhobarold);
     end
     condA         = max(maxrbar,rhotemp)/min(minrbar,rhotemp);
-    
+
     % Test for convergence.
-    
+
     % Compute norms for convergence testing.
     normAr  = abs(zetabar);
     Aresvec = [Aresvec ; normAr];
     normx   = norm(x);
-    
+
     % Now use these norms to estimate certain other quantities,
     % some of which will be small near a solution.
-    
+
     test1   = normr /normb;
     test2   = normAr/(normA*normr);
     test3   =      1/condA;
     t1      =  test1/(1 + normA*normx/normb);
     rtol    = btol + atol*normA*normx/normb;
-    
+
     % The following tests guard against extremely small values of
     % atol, btol or ctol.  (The user may have set any or all of
     % the parameters atol, btol, conlim  to 0.)
     % The effect is equivalent to the normAl tests using
     % atol = eps,  btol = eps,  conlim = 1/eps.
-    
+
     if itn >= itnlim,   istop = 7; end
     if err_lbnd_small,  istop = 8; end
     if 1 + test3  <= 1, istop = 6; end
     if 1 + test2  <= 1, istop = 5; end
     if 1 + t1     <= 1, istop = 4; end
-    
+
     % Allow for tolerances set by the user.
-    
+
     if  test3 <= ctol,  istop = 3; end
     if  test2 <= atol,  istop = 2; end
     if  test1 <= rtol,  istop = 1; end
-    
+
     % See if it is time to print something.
-    
+
     if show
-        prnt = 0;
-        if n     <= 40       , prnt = 1; end
-        if itn   <= 10       , prnt = 1; end
-        if itn   >= itnlim-10, prnt = 1; end
-        if rem(itn,10) == 0  , prnt = 1; end
-        if test3 <= 1.1*ctol , prnt = 1; end
-        if test2 <= 1.1*atol , prnt = 1; end
-        if test1 <= 1.1*rtol , prnt = 1; end
-        if istop ~=  0       , prnt = 1; end
-        
-        if prnt
-            if pcount >= pfreq
-                pcount = 0;
+      prnt = 0;
+      if n     <= 40       , prnt = 1; end
+      if itn   <= 10       , prnt = 1; end
+      if itn   >= itnlim-10, prnt = 1; end
+      if rem(itn,10) == 0  , prnt = 1; end
+      if test3 <= 1.1*ctol , prnt = 1; end
+      if test2 <= 1.1*atol , prnt = 1; end
+      if test1 <= 1.1*rtol , prnt = 1; end
+      if istop ~=  0       , prnt = 1; end
+
+      if prnt
+      	if pcount >= pfreq
+      	  pcount = 0;
                 fprintf('\n\n%s%s'    , hdg1 , hdg2  )
-            end
-            pcount = pcount + 1;
-            fprintf('\n%6g %12.5e'  , itn  , x(1)  )
-            fprintf(' %10.3e %10.3e', normr, normAr)
-            fprintf('  %8.1e %8.1e' , test1, test2 )
-            fprintf(' %8.1e %8.1e'  , normA, condA )
-        end
+      	end
+      	pcount = pcount + 1;
+        fprintf('\n%6g %12.5e'  , itn  , x(1)  )
+        fprintf(' %10.3e %10.3e', normr, normAr)
+        fprintf('  %8.1e %8.1e' , test1, test2 )
+        fprintf(' %8.1e %8.1e'  , normA, condA )
+      end
     end
-    
+
     if istop > 0, break, end
-end % iteration loop
+  end % iteration loop
 
-% Print the stopping condition.
+  % Print the stopping condition.
 
-if show
+  if show
     fprintf('\n\nLSMR finished')
     fprintf('\n%s', msg(istop+1,:))
     fprintf('\nistop =%8g    normr =%8.1e'     , istop, normr )
     fprintf('    normA =%8.1e    normAr =%8.1e', normA, normAr)
     fprintf('\nitn   =%8g    condA =%8.1e'     , itn  , condA )
     fprintf('    normx =%8.1e\n', normx)
-end
+  end
 
-% Collect statistics.
-stats.istop = istop;
-stats.msg = msg(istop+1,:);
-stats.normr = normr;
-stats.normAr = normAr;
-stats.normA = normA;
-stats.condA = condA;
-stats.normx = normx;
-stats.resvec = resvec;
-stats.Aresvec = Aresvec;
-stats.err_lbnds = err_lbnds;
-stats.x_energy_norm = sqrt(x_energy_norm2);
+  % Collect statistics.
+  stats.istop = istop;
+  stats.msg = msg(istop+1,:);
+  stats.normr = normr;
+  stats.normAr = normAr;
+  stats.normA = normA;
+  stats.condA = condA;
+  stats.normx = normx;
+  stats.resvec = resvec;
+  stats.Aresvec = Aresvec;
+  stats.err_lbnds = err_lbnds;
+  stats.x_energy_norm = sqrt(x_energy_norm2);
 
-flags.solved = istop == 0 | (istop >= 1 & istop <= 3) | ...
-    (istop >= 5 & istop <= 6) | istop == 8;
-flags.niters = itn;
+  flags.solved = istop == 0 | (istop >= 1 & istop <= 3) | ...
+      (istop >= 5 & istop <= 6) | istop == 8;
+  flags.niters = itn;
 
 % end function lsmr
 
@@ -560,37 +561,37 @@ flags.niters = itn;
 % Nested functions.
 %---------------------------------------------------------------------
 
-    function localVEnqueue(v)
-        
-        % Store v into the circular buffer localV.
-        
-        if localPointer < localSize
-            localPointer = localPointer + 1;
-        else
-            localPointer = 1;
-            localVQueueFull = true;
-        end
-        localV(:,localPointer) = v;
-        
-    end % nested function localVEnqueue
+  function localVEnqueue(v)
+
+  % Store v into the circular buffer localV.
+
+    if localPointer < localSize
+      localPointer = localPointer + 1;
+    else
+      localPointer = 1;
+      localVQueueFull = true;
+    end
+    localV(:,localPointer) = v;
+
+  end % nested function localVEnqueue
 
 %---------------------------------------------------------------------
 
-    function vOutput = localVOrtho(v)
-        
-        % Perform local reorthogonalization of V.
-        
-        vOutput = v;
-        if localVQueueFull
-            localOrthoLimit = localSize;
-        else
-            localOrthoLimit = localPointer;
-        end
-        for localOrthoCount = 1:localOrthoLimit
-            vtemp   = localV(:, localOrthoCount);
-            vOutput = vOutput - (vOutput'*N*vtemp)*vtemp;
-        end
-        
-    end % nested function localVOrtho
+  function vOutput = localVOrtho(v)
+
+  % Perform local reorthogonalization of V.
+
+    vOutput = v;
+    if localVQueueFull
+      localOrthoLimit = localSize;
+    else
+      localOrthoLimit = localPointer;
+    end
+    for localOrthoCount = 1:localOrthoLimit
+      vtemp   = localV(:, localOrthoCount);
+      vOutput = vOutput - (vOutput'*N*vtemp)*vtemp;
+    end
+
+  end % nested function localVOrtho
 
 end % function lsmr
