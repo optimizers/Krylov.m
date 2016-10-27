@@ -318,7 +318,8 @@ function [x, flags, stats] = lsmr_spot(A, b, opts)
 
   normAr = alpha * beta;
   Aresvec = [Aresvec ; normAr];
-  if normAr == 0, disp(msg(1,:)); return, end
+
+  done = normAr == 0;
 
   % Heading for iteration log.
 
@@ -335,7 +336,7 @@ function [x, flags, stats] = lsmr_spot(A, b, opts)
   %------------------------------------------------------------------
   %     Main iteration loop.
   %------------------------------------------------------------------
-  while itn < itnlim
+  while (itn < itnlim) && ~done
     itn = itn + 1;
 
     % Perform the next step of the bidiagonalization to obtain the
@@ -542,7 +543,8 @@ function [x, flags, stats] = lsmr_spot(A, b, opts)
   stats.err_lbnds = err_lbnds;
   stats.x_energy_norm = sqrt(x_energy_norm2);
 
-  flags.solved = (istop >= 1 & istop <= 3) | (istop >= 5 & istop <= 6) | istop == 8;
+  flags.solved = istop == 0 | (istop >= 1 & istop <= 3) | ...
+	(istop >= 5 & istop <= 6) | istop == 8;
   flags.niters = itn;
 
 % end function lsmr
