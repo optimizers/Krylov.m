@@ -234,7 +234,9 @@ if alfa > 0
    Nv = (1/alfa)*Nv;
 end
 
-Arnorm = alfa*beta;     if Arnorm == 0, disp(msg(1,:)); return, end
+Arnorm = alfa*beta;
+     
+done = Arnorm == 0;
 
 rhobar = alfa;          phibar = beta;          bnorm  = beta;
 rnorm  = beta;
@@ -258,7 +260,7 @@ end
 %------------------------------------------------------------------
 %     Main iteration loop.
 %------------------------------------------------------------------
-while itn < itnlim
+while (itn < itnlim) && ~done
   itn = itn + 1;
 
 % Perform the next step of the bidiagonalization to obtain the
@@ -452,7 +454,8 @@ if wantvar
   stats.var = var;
 end
 
-flags.solved = (istop >= 1 & istop <= 3) | (istop >= 5 & istop <= 6) | istop == 8;
+flags.solved = istop == 0 | (istop >= 1 & istop <= 3) | ...
+	(istop >= 5 & istop <= 6) | istop == 8;
 flags.niters = itn;
 
 %-----------------------------------------------------------------------
