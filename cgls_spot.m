@@ -1,10 +1,10 @@
-function [x, stats] = cgls(A, b, varargin)
+function [x, stats] = cgls_spot(A, b, varargin)
 %% CGLS
 % Solve the regularized linear least-squares problem
 %
 %       minimize ||b - Ax||² + lambda * ||x||²
 %
-% using the Conjugate Gradient (CG) method, where lambda >= is a
+% using the Conjugate Gradient (CG) method, where lambda >= 0 is a
 % regularization parameter. 
 %
 % CGLS is formally equivalent to applying the conjugate gradient method to
@@ -54,17 +54,17 @@ function [x, stats] = cgls(A, b, varargin)
 %% Read input
 
 [m, n] = size(A);
-if size(b,1) ~= m
+if size(b, 1) ~= m
     error('Inconsistent problem size');
 end
 
 p = inputParser;
 p.PartialMatching = false;
-p.addParameter('M'      , speye(m));
+p.addParameter('M'      , opEye(m));
 p.addParameter('lambda' , 0);
 p.addParameter('atol'   , 1e-8);
 p.addParameter('rtol'   , 1e-6);
-p.addParameter('itmax'  , n+m);
+p.addParameter('itmax'  , n + m);
 p.addParameter('verbose', false);
 
 p.parse(varargin{:});
@@ -91,61 +91,60 @@ if bNorm == 0
                    'rNorms',  0.0,  ...
                    'ArNorms', 0.0,  ...
                    'status',  'x = 0 is a zero-residual solution');
-    return;
+    return
 end
 
-s = A.' * (M * r);
+s = A' * (M * r);
 p = s;
-y = s.'*s;
+y = s' * s;
 iter = 0;
 
 rNorm = bNorm;
 ArNorm = sqrt(y);
-rNorms = [rNorm; zeros(m+n, 1)];
-ArNorms = [ArNorm; zeros(m+n, 1)];
-epsilon = atol + rtol*ArNorm;
+rNorms = [rNorm ; zeros(m + n, 1)];
+ArNorms = [ArNorm ; zeros(m + n, 1)];
+epsilon = atol + rtol * ArNorm;
 
 if verbose
     fprintf('%5s %13s %13s\n', 'Aprod', '|A''r|', '|r|');
     fprintf('%5d %13.6e %13.6e\n', 1, ArNorm, rNorm);
 end
 
-
-solved = (ArNorm <= epsilon);
-tired = (iter >= itmax);
+solved = ArNorm <= epsilon;
+tired = iter >= itmax;
 
 %% Main loop
 while ~(solved || tired)
-    q = A*p;
-    delta = q.'*M*q;
+    q = A * p;
+    delta = q' * M * q;
     if lambda > 0
-        delta = delta + lambda * (p.'*p);
+        delta = delta + lambda * (p' * p);
     end
     alpha = y / delta;
     
-    x = x + alpha*p;
-    r = r - alpha*q;
-    s = A.' * (M * r);
+    x = x + alpha * p;
+    r = r - alpha * q;
+    s = A' * (M * r);
     if lambda > 0
-        s = s - lambda*x;
+        s = s - lambda * x;
     end
     
-    yNext = s.'*s;
+    yNext = s' * s;
     beta = yNext / y;
-    p = s + beta*p;
+    p = s + beta * p;
     y = yNext;
     
     iter = iter + 1;
     rNorm = norm(r);
     ArNorm = sqrt(y);
-    rNorms(iter+1) = rNorm;
-    ArNorms(iter+1) = ArNorm;
+    rNorms(iter + 1) = rNorm;
+    ArNorms(iter + 1) = ArNorm;
     
     if verbose
-        fprintf('%5d %13.6e %13.6e\n', 1+2*iter, ArNorm, rNorm);
+        fprintf('%5d %13.6e %13.6e\n', 1 + 2 * iter, ArNorm, rNorm);
     end
     
-    solved = (ArNorm <= epsilon);
+    solved = ArNorm <= epsilon;
     tired = iter >= itmax;
 end
 
@@ -156,8 +155,8 @@ else
     status = 'Solution good enough given atol and rtol';
 end
 stats = struct('solved',  solved,  ...
-               'rNorms',  rNorms(1:iter+1),  ...
-               'ArNorms', ArNorms(1:iter+1), ...
+               'rNorms',  rNorms(1:iter + 1),  ...
+               'ArNorms', ArNorms(1:iter + 1), ...
                'status',  status);
 end
 
