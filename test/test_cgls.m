@@ -5,8 +5,8 @@
 ntest = 20; % Number of tests
 logcond = 2; % singular values are between 1 and 10^logcond
 
-n = 100;     % number of equations
-m = 50;      % number of unknowns
+n = 10;     % number of equations
+m = 5;      % number of unknowns
 
 fprintf('====================================\n');
 fprintf('    TEST CGLS\n');
@@ -30,19 +30,19 @@ for itest = 1:ntest
     b = randn(n, 1);
     
     [U, ~, V] = svd(A);
-    D = [diag(10.^(logcond / 2* rand(m, 1))) ; ...
+    R = [diag(10 .^ (logcond / 2 * rand(m, 1))) ; ...
         zeros(n - m, m)];
-    A = U * D * V';
+    A = U * R * V';
     
     % Set regularization parameter
-    op.lambda = (itest-1)/ntest;
+    op.lambda = (itest - 1) / ntest * 1e-3;
     
     % Preconditioner
-    op.M = opLBFGS(n, 5);
-    op.M.update_forward = true;
-    for k = 1:5
-        op.M = update(op.M, rand(n, 1), rand(n, 1));
+    D = eye(n, n);
+    for i = 1:m
+        D(i, i) = 1 / R(i, i);
     end
+    op.M = U * D * U';
    
     % Run CGLS
     [x, info] = cgls_spot(A, b, op);
